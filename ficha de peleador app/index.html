@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CanMMA — Galería de Alumnos</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,700;1,800&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0e1a;
+      --red: #f53b3b;
+      --text: #ffffff;
+      --muted: #a0aec0;
+    }
+
+    html, body {
+      height: 100%; background: var(--bg);
+      color: var(--text); font-family: 'Barlow', system-ui, sans-serif;
+      overflow: hidden;
+    }
+
+    /* ── Fondo ── */
+    .bg-canvas {
+      position: fixed; inset: 0;
+      background: radial-gradient(circle at 70% 50%, #152342 0%, #0a0e1a 100%);
+      z-index: 0;
+    }
+    .bg-logo {
+      position: fixed; top: 50%; left: 15%;
+      transform: translate(-50%, -50%) rotate(-10deg);
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 900;
+      font-size: 35vw; color: rgba(255,255,255,0.018);
+      white-space: nowrap; pointer-events: none; z-index: 1;
+      text-transform: uppercase; user-select: none;
+    }
+
+    /* ── Stage ── */
+    .stage { position: fixed; inset: 0; z-index: 2; }
+
+    .slide {
+      position: absolute; inset: 0;
+      opacity: 0; transition: opacity .8s ease-in-out; pointer-events: none;
+    }
+    .slide.active { opacity: 1; pointer-events: auto; }
+
+    /* ── Ficha ── */
+    .card { width: 100%; height: 100%; display: flex; align-items: stretch; }
+
+    .card-content {
+      flex: 1; padding: 5vh 6vw;
+      display: flex; flex-direction: column; justify-content: center;
+      z-index: 2;
+      position: relative;
+    }
+
+    /* Single shared wolf video — fixed behind all slides */
+    .wolf-bg {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 60%;
+      object-fit: cover;
+      object-position: left 15%;
+      z-index: 1;
+      pointer-events: none;
+      filter: brightness(0.52) saturate(0.6);
+      will-change: transform;
+    }
+    @media (max-width: 800px) {
+      .wolf-bg { width: 100%; height: 42vh; bottom: auto; }
+    }
+
+    /* Overlay: fade to dark on the right so text is always readable */
+    .card-content::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(to right,
+          rgba(10,14,26,0.30)  0%,
+          rgba(10,14,26,0.42) 40%,
+          rgba(10,14,26,0.82) 68%,
+          rgba(10,14,26,0.97) 88%,
+          #0a0e1a             100%),
+        linear-gradient(to bottom,
+          rgba(10,14,26,0.38)  0%,
+          transparent          15%,
+          transparent          80%,
+          rgba(10,14,26,0.38) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .card-content > * { position: relative; z-index: 2; }
+
+    .student-name {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800; font-size: clamp(38px, 5.5vw, 82px);
+      color: #fff; line-height: 1; margin-bottom: 3.5vh;
+      text-shadow: 0 0 30px rgba(255,255,255,0.3);
+    }
+
+    .info-list { display: flex; flex-direction: column; gap: 1.4vh; }
+
+    .info-item { font-size: clamp(15px, 1.7vw, 23px); line-height: 1.35; font-weight: 600; }
+    .info-item.dim { color: var(--muted); font-size: 0.85em; margin-top: -0.5vh; }
+    .val-red   { color: var(--red);   font-weight: 700; }
+    .val-green { color: #4ade80;      font-weight: 700; }
+
+    /* Fire emoji animation */
+    .fire-emoji {
+      display: inline-block;
+      animation: fire-flicker 1.2s ease-in-out infinite alternate;
+      transform-origin: 50% 100%;
+    }
+    @keyframes fire-flicker {
+      0%   { transform: scaleX(1)    scaleY(1)    rotate(-2deg); filter: brightness(1);   }
+      25%  { transform: scaleX(0.95) scaleY(1.06) rotate(1deg);  filter: brightness(1.1); }
+      50%  { transform: scaleX(1.05) scaleY(0.97) rotate(-1deg); filter: brightness(0.95);}
+      75%  { transform: scaleX(0.97) scaleY(1.04) rotate(2deg);  filter: brightness(1.15);}
+      100% { transform: scaleX(1.02) scaleY(0.98) rotate(-2deg); filter: brightness(1);   }
+    }
+
+    /* ── Foto ── */
+    .card-photo-wrap {
+      width: 42%; position: relative; z-index: 1; overflow: hidden;
+    }
+    .card-photo-wrap::before {
+      content: ''; position: absolute; inset: 0; z-index: 2;
+      background: linear-gradient(to right, #0a0e1a 0%, transparent 38%);
+    }
+    .card-photo { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+    .photo-init {
+      width: 100%; height: 100%; background: #0d1a35;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .photo-init span {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 12vw;
+      color: rgba(255,255,255,.08);
+    }
+
+    /* ── Header (siempre encima de todo) ── */
+    .header {
+      position: fixed; top: 0; left: 0; right: 0; height: 44px;
+      display: flex; align-items: center; justify-content: flex-end;
+      padding: 0 18px; z-index: 600; pointer-events: none;
+    }
+    .btn-cfg {
+      pointer-events: auto;
+      background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
+      color: var(--muted); padding: 4px 11px; border-radius: 4px;
+      cursor: pointer; font-size: 11px; font-family: inherit; transition: all .2s;
+    }
+    .btn-cfg:hover { background: rgba(255,255,255,.12); color: #fff; }
+
+    /* ── Navegación ── */
+    .nav-btn {
+      position: fixed; top: 50%; transform: translateY(-50%);
+      width: 56px; height: 56px; background: transparent; border: none;
+      color: rgba(255,255,255,.12); font-size: 38px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 400; transition: all .2s; line-height: 1;
+    }
+    .nav-btn:hover { color: #fff; transform: translateY(-50%) scale(1.15); }
+    .nav-prev { left: 8px; }
+    .nav-next { right: 8px; }
+
+    /* ── Progreso + Contador ── */
+    .progress-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 3px; background: rgba(255,255,255,.05); z-index: 400;
+    }
+    .progress-fill { height: 100%; background: #fff; width: 0%; box-shadow: 0 0 8px rgba(255,255,255,.5); }
+
+    .counter {
+      position: fixed; bottom: 14px; right: 22px;
+      font-family: 'Barlow Condensed', sans-serif; font-size: 13px;
+      color: var(--muted); z-index: 400; letter-spacing: .08em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Overlay de carga/error ── */
+    .overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 18px;
+      background: var(--bg); z-index: 300;
+    }
+    .overlay.hidden { display: none; }
+
+    .spinner {
+      width: 44px; height: 44px;
+      border: 3px solid rgba(255,255,255,.08);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .overlay-msg {
+      font-size: 15px; color: var(--muted); text-align: center;
+      max-width: 520px; line-height: 1.6; padding: 0 24px;
+    }
+    .overlay-msg .err-title { color: var(--red); font-weight: 700; font-size: 17px; margin-bottom: 8px; }
+
+    .btn-retry {
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+      color: #fff; padding: 9px 22px; border-radius: 6px;
+      cursor: pointer; font-size: 14px; font-family: inherit; margin-top: 4px;
+      transition: background .2s;
+    }
+    .btn-retry:hover { background: rgba(255,255,255,.16); }
+
+    /* ── Modal ── */
+    .modal-bg {
+      position: fixed; inset: 0; background: rgba(0,0,0,.8);
+      backdrop-filter: blur(5px); z-index: 700;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .modal-bg.hidden { display: none; }
+    .modal {
+      background: #111b2e; border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px; padding: 28px 32px; width: min(380px,92vw); color: #fff;
+    }
+    .modal h2 {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 20px;
+      margin-bottom: 20px;
+    }
+    .modal label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; }
+    .modal input {
+      width: 100%; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.15);
+      border-radius: 5px; color: #fff; padding: 9px 11px; font-size: 14px;
+      margin-bottom: 16px; font-family: inherit; outline: none; transition: border-color .2s;
+    }
+    .modal input:focus { border-color: rgba(255,255,255,.5); }
+    .modal-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+    .btn-save { background: #fff; color: #000; border: none; padding: 10px 22px; border-radius: 5px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+    .btn-save:hover { background: #e0e0e0; }
+    .btn-cancel { background: transparent; border: 1px solid rgba(255,255,255,.15); color: var(--muted); padding: 10px 16px; border-radius: 5px; font-size: 14px; cursor: pointer; font-family: inherit; }
+    .btn-cancel:hover { color: #fff; border-color: rgba(255,255,255,.4); }
+
+    /* ── Responsive ── */
+    @media (max-width: 800px) {
+      .card { flex-direction: column; }
+      .card-content { order: 2; padding: 28px 24px 60px; justify-content: flex-start; }
+      .card-photo-wrap { order: 1; width: 100%; height: 42vh; }
+      .card-photo-wrap::before { background: linear-gradient(to bottom, #0a0e1a 0%, transparent 30%); }
+      .student-name { font-size: 34px; margin-bottom: 20px; }
+      .bg-logo { font-size: 60vw; left: 50%; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-canvas"></div>
+<div class="bg-logo">CAN MMA</div>
+
+<!-- Único video compartido: fijo, siempre en loop, sin recrearse por slide -->
+<video class="wolf-bg" src="mp7jpumh-Animacion-de-lobo--fondo-de-fichas-de-peleador.mp4"
+  autoplay loop muted playsinline></video>
+
+<!-- Header SIEMPRE encima (z-index 600) -->
+<header class="header">
+  <button class="btn-cfg" onclick="openCfg()">⚙ AJUSTES</button>
+</header>
+
+<!-- Escenario de slides -->
+<div class="stage" id="stage"></div>
+
+<!-- Botones de navegación -->
+<button class="nav-btn nav-prev" onclick="carousel.prev()">‹</button>
+<button class="nav-btn nav-next" onclick="carousel.next()">›</button>
+
+<div class="counter" id="counter"></div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- Overlay de carga/error (z-index 300, BAJO el header) -->
+<div class="overlay" id="overlay">
+  <div class="spinner" id="spinner"></div>
+  <div class="overlay-msg" id="overlayMsg">CONECTANDO CON GOOGLE SHEETS…</div>
+  <button class="btn-retry hidden" id="btnRetry" onclick="retryLoad()">↻ Reintentar</button>
+</div>
+
+<!-- Modal de ajustes (z-index 700, SOBRE todo) -->
+<div class="modal-bg hidden" id="modalBg" onclick="closeCfg()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>⚙ Ajustes de Galería</h2>
+    <div class="modal-row">
+      <div>
+        <label>Refresco (seg)</label>
+        <input type="number" id="inRefresh" value="30" min="10" max="600">
+      </div>
+      <div>
+        <label>Tiempo por alumno</label>
+        <input type="number" id="inCarousel" value="8" min="3" max="60">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeCfg()">Cancelar</button>
+      <button class="btn-save" onclick="saveCfg()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Config ── */
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8wqLNnXCDVXpr1oH1IwWwyMxjH86BxMUIAhdEYYtyY8cjuHpQE1ZmyQvjSM_u7rU1kY0QSucJLeS8/pub?output=csv&gid=0';
+  const CFG_KEY = 'canmma_v6';
+
+  function loadCfg() { try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch(e) { return {}; } }
+  let cfg = { refreshSecs: 30, carouselSecs: 8, ...loadCfg() };
+
+  /* ── Modal ── */
+  function openCfg() {
+    document.getElementById('inRefresh').value = cfg.refreshSecs;
+    document.getElementById('inCarousel').value = cfg.carouselSecs;
+    document.getElementById('modalBg').classList.remove('hidden');
+  }
+  function closeCfg() {
+    document.getElementById('modalBg').classList.add('hidden');
+  }
+  function saveCfg() {
+    cfg.refreshSecs = Math.max(10, parseInt(document.getElementById('inRefresh').value) || 30);
+    cfg.carouselSecs = Math.max(3, parseInt(document.getElementById('inCarousel').value) || 8);
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    closeCfg();
+    carousel.updateInterval(cfg.carouselSecs);
+  }
+
+  /* ── CSV Parser ── */
+  function parseCSV(raw) {
+    const rows = []; let row = [], field = '', i = 0;
+    while (i < raw.length) {
+      const c = raw[i];
+      if (c === '"') {
+        i++;
+        while (i < raw.length) {
+          if (raw[i] === '"' && raw[i+1] === '"') { field += '"'; i += 2; }
+          else if (raw[i] === '"') { i++; break; }
+          else { field += raw[i++]; }
+        }
+      } else if (c === ',') {
+        row.push(field.trim()); field = ''; i++;
+      } else if (c === '\r' || c === '\n') {
+        row.push(field.trim()); field = '';
+        if (row.some(f => f !== '')) rows.push(row);
+        row = [];
+        if (c === '\r' && raw[i+1] === '\n') i += 2; else i++;
+      } else { field += c; i++; }
+    }
+    if (row.length) { row.push(field.trim()); if (row.some(f => f !== '')) rows.push(row); }
+    return rows;
+  }
+
+  /* ── Proxy cascade ── */
+  const PROXIES = [
+    u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+    u => `https://thingproxy.freeboard.io/fetch/${u}`
+  ];
+
+  async function fetchCSV() {
+    const target = CSV_URL + '&t=' + Date.now();
+    let lastErr = null;
+
+    for (let i = 0; i < PROXIES.length; i++) {
+      const proxyUrl = PROXIES[i](target);
+      try {
+        const res = await fetch(proxyUrl, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        if (!text || text.length < 20) throw new Error('Respuesta vacía');
+        if (text.trimStart().startsWith('<!')) throw new Error('Recibí HTML, no CSV');
+        return text;
+      } catch(e) {
+        lastErr = e;
+      }
+    }
+    throw new Error(lastErr?.message || 'Todos los proxies fallaron');
+  }
+
+  /* ── Parse students from CSV ── */
+  function parseStudents(csvText) {
+    const rows = parseCSV(csvText);
+    if (rows.length < 2) throw new Error('Sin datos en el Sheet');
+
+    const norm = s => (s || '').toLowerCase()
+      .normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    const heads = rows[0].map(norm);
+    const col = name => heads.indexOf(norm(name));
+
+    const C = {
+      nombre:    col('nombre'),
+      fecha:     col('fecha de nacimiento'),
+      edad:      col('edad'),
+      grado:     col('grado'),
+      premioMes: col('premio del mes'),
+      cursos:    col('cursos completados'),
+      premios25: col('premios canmma 2025'),
+      foto:      col('foto'),
+      racha:     col('racha semanal'),
+      mensual:   col('mensualidades')
+    };
+
+    return rows.slice(1)
+      .filter(r => r[C.nombre] && r[C.nombre].trim())
+      .map(r => ({
+        nombre:    (r[C.nombre]    || '').trim(),
+        fecha:     (r[C.fecha]     || '').trim(),
+        edad:      (r[C.edad]      || '').trim(),
+        grado:     (r[C.grado]     || '').trim(),
+        premioMes: (r[C.premioMes] || '').trim(),
+        cursos:    (r[C.cursos]    || '').trim(),
+        premios25: (r[C.premios25] || '').trim(),
+        foto:      (r[C.foto]      || '').trim(),
+        racha:     (r[C.racha]     || '').trim(),
+        mensual:   (r[C.mensual]   || '').trim()
+      }));
+  }
+
+  function initials(name) {
+    return name.split(/\s+/).slice(0,2).map(w => w[0]||'').join('').toUpperCase();
+  }
+
+  /* ── Image loader via proxy → blob URL ── */
+  /* Google Drive <img src> fails silently (redirects to HTML auth/warning pages).
+     Fetching via proxy lets us check content-type and convert to a real blob URL. */
+  const imgCache = new Map(); // driveUrl → blobSrc | 'fail'
+  const imgQueue = [];
+  let imgBusy = 0;
+  const IMG_CONCURRENCY = 4;
+
+  async function fetchImageBlob(url) {
+    if (!url) return null;
+    const m = url.match(/\/file\/d\/([^/?#]+)/) || url.match(/[?&]id=([^&]+)/);
+    const candidates = m
+      ? [`https://lh3.googleusercontent.com/d/${m[1]}`,
+         `https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`]
+      : (url.startsWith('http') ? [url] : []);
+
+    for (const candidate of candidates) {
+      for (let pi = 0; pi < 2; pi++) {
+        try {
+          const res = await fetch(PROXIES[pi](candidate), { cache: 'force-cache' });
+          if (!res.ok) continue;
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.startsWith('image/')) continue;
+          const blob = await res.blob();
+          if (blob.size < 1024) continue;
+          return URL.createObjectURL(blob);
+        } catch(e) { continue; }
+      }
+    }
+    return null;
+  }
+
+  function processImgQueue() {
+    while (imgQueue.length && imgBusy < IMG_CONCURRENCY) {
+      imgBusy++;
+      const { url, slots } = imgQueue.shift();
+      fetchImageBlob(url)
+        .then(src => {
+          imgBusy--;
+          imgCache.set(url, src || 'fail');
+          if (src) slots.forEach(slot => applyImageToSlot(slot, src));
+          processImgQueue();
+        })
+        .catch(() => { imgBusy--; imgCache.set(url, 'fail'); processImgQueue(); });
+    }
+  }
+
+  function applyImageToSlot(slot, src) {
+    if (!slot.isConnected) return;
+    const img = document.createElement('img');
+    img.className = 'card-photo';
+    img.src = src;
+    slot.replaceWith(img);
+  }
+
+  function queueImage(url, slot) {
+    if (!url) return;
+    const cached = imgCache.get(url);
+    if (cached && cached !== 'fail') { applyImageToSlot(slot, cached); return; }
+    if (cached === 'fail') return;
+    const existing = imgQueue.find(q => q.url === url);
+    if (existing) { existing.slots.push(slot); }
+    else { imgQueue.push({ url, slots: [slot] }); }
+    processImgQueue();
+  }
+
+  /* ── Build slide ── */
+  function buildSlide(s) {
+    const uid = Math.random().toString(36).slice(2);
+    const div = document.createElement('div');
+    div.className = 'slide';
+    const init = initials(s.nombre);
+
+    const items = [];
+    if (s.grado)     items.push(`<div class="info-item"><b>Grado:</b> ${s.grado}</div>`);
+    if (s.fecha)     items.push(`<div class="info-item dim">${s.fecha}${s.edad ? ' · ' + s.edad + ' años' : ''}</div>`);
+    if (s.mensual) {
+      const mensualNum = parseFloat(s.mensual.toString().replace(/[^0-9.\-]/g, ''));
+      const mensualClass = (!isNaN(mensualNum) && mensualNum > 0) ? 'val-green' : 'val-red';
+      items.push(`<div class="info-item">Mensualidad: <span class="${mensualClass}">${s.mensual}</span></div>`);
+    }
+    if (s.racha)     items.push(`<div class="info-item">Racha Semanal: ${s.racha} <span class="fire-emoji">🔥</span></div>`);
+    if (s.premioMes) items.push(`<div class="info-item">Premio del mes: ${s.premioMes}</div>`);
+    if (s.premios25) items.push(`<div class="info-item">Premios CanMMA 2025: ${s.premios25}</div>`);
+    if (s.cursos)    items.push(`<div class="info-item">Cursos completados: ${s.cursos}</div>`);
+
+    div.innerHTML = `
+      <div class="card">
+        <div class="card-content">
+          <h1 class="student-name">${s.nombre}</h1>
+          <div class="info-list">${items.join('')}</div>
+        </div>
+        <div class="card-photo-wrap">
+          <div class="photo-init" data-uid="${uid}"><span>${init}</span></div>
+        </div>
+      </div>`;
+
+    if (s.foto) {
+      const slot = div.querySelector(`[data-uid="${uid}"]`);
+      if (/drive\.google\.com|googleusercontent\.com/i.test(s.foto)) {
+        queueImage(s.foto, slot);
+      } else {
+        const img = document.createElement('img');
+        img.className = 'card-photo';
+        img.onerror = () => {};
+        img.onload = () => { if (slot.isConnected) slot.replaceWith(img); };
+        img.src = s.foto;
+      }
+    }
+
+    return div;
+  }
+
+  /* ── UI helpers ── */
+  function showLoading() {
+    document.getElementById('spinner').style.display = '';
+    document.getElementById('overlayMsg').innerHTML = 'CONECTANDO CON GOOGLE SHEETS…';
+    document.getElementById('btnRetry').classList.add('hidden');
+    document.getElementById('overlay').classList.remove('hidden');
+  }
+
+  function showError(msg) {
+    document.getElementById('spinner').style.display = 'none';
+    document.getElementById('overlayMsg').innerHTML =
+      `<div class="err-title">Error al cargar datos</div>${msg}<br><br>` +
+      `Asegúrate de que el Sheet esté publicado:<br>` +
+      `<em>Archivo → Compartir → Publicar en la web → CSV</em>`;
+    document.getElementById('btnRetry').classList.remove('hidden');
+    document.getElementById('overlay').classList.remove('hidden');
+  }
+
+  function hideOverlay() {
+    document.getElementById('overlay').classList.add('hidden');
+  }
+
+  /* ── Carousel ── */
+  const carousel = (() => {
+    let slides = [], current = 0, timer = null, secs = cfg.carouselSecs;
+    const stage = document.getElementById('stage');
+    const fill  = document.getElementById('progressFill');
+    const ctr   = document.getElementById('counter');
+
+    function show(idx) {
+      if (!slides.length) return;
+      slides[current].classList.remove('active');
+      current = ((idx % slides.length) + slides.length) % slides.length;
+      slides[current].classList.add('active');
+      ctr.textContent = `${String(current+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+      fill.style.transition = 'none'; fill.style.width = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fill.style.transition = `width ${secs}s linear`;
+        fill.style.width = '100%';
+      }));
+    }
+
+    function startAuto() {
+      clearInterval(timer);
+      timer = setInterval(() => show(current + 1), secs * 1000);
+    }
+
+    return {
+      setSlides(ns) {
+        slides.forEach(s => s.remove());
+        slides = ns;
+        slides.forEach(s => stage.appendChild(s));
+        current = 0; show(0); startAuto();
+      },
+      next() { clearInterval(timer); show(current + 1); startAuto(); },
+      prev() { clearInterval(timer); show(current - 1); startAuto(); },
+      updateInterval(newSecs) { secs = newSecs; startAuto(); }
+    };
+  })();
+
+  /* ── Keyboard ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') carousel.next();
+    if (e.key === 'ArrowLeft')  carousel.prev();
+  });
+
+  /* ── App ── */
+  let dataInterval = null;
+
+  async function loadData() {
+    try {
+      const csvText  = await fetchCSV();
+      const students = parseStudents(csvText);
+      if (!students.length) throw new Error('No se encontraron alumnos con nombre en el Sheet.');
+      carousel.setSlides(students.map(buildSlide));
+      hideOverlay();
+    } catch(e) {
+      showError(e.message);
+    }
+  }
+
+  function retryLoad() {
+    showLoading();
+    loadData();
+  }
+
+  function startApp() {
+    showLoading();
+    loadData();
+    if (dataInterval) clearInterval(dataInterval);
+    dataInterval = setInterval(loadData, cfg.refreshSecs * 1000);
+  }
+
+  startApp();
+</script>
+</body>
+</html>
