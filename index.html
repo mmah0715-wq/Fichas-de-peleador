@@ -2,7 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>CanMMA — Galería de Alumnos</title>
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,700;1,800&family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
@@ -19,6 +21,9 @@
       height: 100%; background: var(--bg);
       color: var(--text); font-family: 'Barlow', system-ui, sans-serif;
       overflow: hidden;
+      touch-action: manipulation;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* ── Fondo ── */
@@ -49,7 +54,8 @@
     .card { width: 100%; height: 100%; display: flex; align-items: stretch; }
 
     .card-content {
-      flex: 1; padding: 5vh 6vw;
+      flex: 1;
+      padding: max(5vh, env(safe-area-inset-top)) 4vw max(5vh, env(safe-area-inset-bottom)) calc(6vw + env(safe-area-inset-left));
       display: flex; flex-direction: column; justify-content: center;
       z-index: 2;
       position: relative;
@@ -67,7 +73,7 @@
       filter: brightness(0.95) saturate(0.9);
       will-change: transform;
     }
-    @media (max-width: 800px) {
+    @media (orientation: portrait) {
       .wolf-bg { width: 100%; height: 42vh; bottom: auto; }
     }
 
@@ -96,14 +102,22 @@
 
     .student-name {
       font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800; font-size: clamp(38px, 5.5vw, 82px);
+      font-weight: 800; font-size: clamp(26px, min(5.5vw, 11vh), 82px);
       color: #fff; line-height: 1; margin-bottom: 3.5vh;
+      overflow-wrap: break-word;
       text-shadow: 0 0 30px rgba(255,255,255,0.3);
+    }
+
+    .apodo {
+      font-family: 'Barlow Condensed', sans-serif; font-style: italic;
+      font-size: clamp(18px, min(2.5vw, 6vh), 38px); font-weight: 700;
+      color: var(--red); margin-top: -2vh; margin-bottom: 2.5vh;
+      letter-spacing: .04em;
     }
 
     .info-list { display: flex; flex-direction: column; gap: 1.4vh; }
 
-    .info-item { font-size: clamp(15px, 1.7vw, 23px); line-height: 1.35; font-weight: 600; }
+    .info-item { font-size: clamp(12px, min(1.8vw, 4.2vh), 23px); line-height: 1.35; font-weight: 600; }
     .info-item.dim { color: var(--muted); font-size: 0.85em; margin-top: -0.5vh; }
     .val-red   { color: var(--red);   font-weight: 700; }
     .val-green { color: #4ade80;      font-weight: 700; }
@@ -143,16 +157,24 @@
     /* ── Header (siempre encima de todo) ── */
     .header {
       position: fixed; top: 0; left: 0; right: 0; height: 44px;
-      display: flex; align-items: center; justify-content: flex-end;
-      padding: 0 18px; z-index: 600; pointer-events: none;
+      display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+      padding: env(safe-area-inset-top) calc(18px + env(safe-area-inset-right)) 0 18px;
+      z-index: 600; pointer-events: none;
     }
     .btn-cfg {
       pointer-events: auto;
       background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12);
-      color: var(--muted); padding: 4px 11px; border-radius: 4px;
-      cursor: pointer; font-size: 11px; font-family: inherit; transition: all .2s;
+      color: var(--muted); padding: 8px 12px; border-radius: 4px;
+      cursor: pointer; font-size: 12px; font-family: inherit; transition: all .2s;
     }
-    .btn-cfg:hover { background: rgba(255,255,255,.12); color: #fff; }
+    .btn-cfg.hidden { display: none; }
+    @media (max-width: 560px) {
+      .btn-cfg { font-size: 16px; padding: 6px 10px; }
+      .btn-cfg .lbl { display: none; }
+    }
+    @media (hover: hover) {
+      .btn-cfg:hover { background: rgba(255,255,255,.12); color: #fff; }
+    }
 
     /* ── Navegación ── */
     .nav-btn {
@@ -162,9 +184,16 @@
       display: flex; align-items: center; justify-content: center;
       cursor: pointer; z-index: 400; transition: all .2s; line-height: 1;
     }
-    .nav-btn:hover { color: #fff; transform: translateY(-50%) scale(1.15); }
-    .nav-prev { left: 8px; }
-    .nav-next { right: 8px; }
+    @media (hover: hover) {
+      .nav-btn:hover { color: #fff; transform: translateY(-50%) scale(1.15); }
+    }
+    .nav-prev { left: calc(4px + env(safe-area-inset-left)); }
+    .nav-next { right: calc(4px + env(safe-area-inset-right)); }
+
+    /* Controles se ocultan solos tras unos segundos sin tocar (limpio en la tele) */
+    .header, .nav-btn, .counter { transition: opacity .5s; }
+    body.idle .header, body.idle .nav-btn { opacity: 0; }
+    body.idle { cursor: none; }
 
     /* ── Progreso + Contador ── */
     .progress-bar {
@@ -227,6 +256,12 @@
       margin-bottom: 20px;
     }
     .modal label { display: block; font-size: 11px; font-weight: 600; letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; }
+    .modal .hint { font-size: 12px; color: var(--muted); margin: -8px 0 16px; line-height: 1.4; }
+    .btn-mode { color: #fff; font-weight: 700; letter-spacing: .04em; }
+    .overlay-msg .class-title {
+      font-family: 'Barlow Condensed', sans-serif; font-weight: 800;
+      font-size: clamp(28px, min(6vw, 12vh), 64px); color: #fff; letter-spacing: .04em;
+    }
     .modal input {
       width: 100%; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.15);
       border-radius: 5px; color: #fff; padding: 9px 11px; font-size: 14px;
@@ -241,12 +276,22 @@
     .btn-cancel:hover { color: #fff; border-color: rgba(255,255,255,.4); }
 
     /* ── Responsive ── */
-    @media (max-width: 800px) {
+    /* Celular/tele en horizontal con poca altura: más compacto */
+    @media (orientation: landscape) and (max-height: 500px) {
+      .info-list { gap: 1vh; }
+      .student-name { margin-bottom: 2.5vh; }
+      .nav-btn { width: 44px; height: 44px; font-size: 30px; }
+      .counter { bottom: 8px; }
+    }
+
+    /* Celular en vertical: foto arriba, datos abajo */
+    @media (orientation: portrait) {
       .card { flex-direction: column; }
-      .card-content { order: 2; padding: 28px 24px 60px; justify-content: flex-start; }
-      .card-photo-wrap { order: 1; width: 100%; height: 42vh; }
+      .card-content { order: 2; padding: 24px 24px 48px; justify-content: flex-start; min-width: 0; width: 100%; }
+      .card-photo-wrap { order: 1; width: 100%; height: 42vh; flex-shrink: 0; }
       .card-photo-wrap::before { background: linear-gradient(to bottom, #0a0e1a 0%, transparent 30%); }
-      .student-name { font-size: 34px; margin-bottom: 20px; }
+      .student-name { font-size: clamp(26px, 8vw, 48px); margin-bottom: 16px; }
+      .info-item { font-size: clamp(13px, 4vw, 20px); }
       .bg-logo { font-size: 60vw; left: 50%; }
     }
   </style>
@@ -258,11 +303,13 @@
 
 <!-- Único video compartido: fijo, siempre en loop, sin recrearse por slide -->
 <video class="wolf-bg" src="mp7jpumh-Animacion-de-lobo--fondo-de-fichas-de-peleador.mp4"
-  autoplay loop muted playsinline></video>
+  autoplay loop muted playsinline preload="auto" disablepictureinpicture></video>
 
 <!-- Header SIEMPRE encima (z-index 600) -->
 <header class="header">
-  <button class="btn-cfg" onclick="openCfg()">⚙ AJUSTES</button>
+  <button class="btn-cfg btn-mode" id="btnMode" onclick="cycleMode()">AUTO</button>
+  <button class="btn-cfg" id="btnFs" onclick="toggleFullscreen()">⛶<span class="lbl"> PANTALLA COMPLETA</span></button>
+  <button class="btn-cfg" onclick="openCfg()">⚙<span class="lbl"> AJUSTES</span></button>
 </header>
 
 <!-- Escenario de slides -->
@@ -296,6 +343,18 @@
         <input type="number" id="inCarousel" value="8" min="3" max="60">
       </div>
     </div>
+    <div class="modal-row">
+      <div>
+        <label>Adultos desde</label>
+        <input type="time" id="inAdultosDesde" value="19:10">
+      </div>
+      <div>
+        <label>Adultos hasta</label>
+        <input type="time" id="inAdultosHasta" value="20:30">
+      </div>
+    </div>
+    <p class="hint">En modo AUTO muestra adultos en ese horario y niños el resto del día (según la hora del celular). El botón de arriba
+      alterna AUTO → NIÑOS → ADULTOS.</p>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeCfg()">Cancelar</button>
       <button class="btn-save" onclick="saveCfg()">Guardar</button>
@@ -305,16 +364,30 @@
 
 <script>
   /* ── Config ── */
-  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8wqLNnXCDVXpr1oH1IwWwyMxjH86BxMUIAhdEYYtyY8cjuHpQE1ZmyQvjSM_u7rU1kY0QSucJLeS8/pub?output=csv&gid=0';
+  const SHEET_CSV = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ8wqLNnXCDVXpr1oH1IwWwyMxjH86BxMUIAhdEYYtyY8cjuHpQE1ZmyQvjSM_u7rU1kY0QSucJLeS8/pub?output=csv&gid=';
+  const PROFILES = {
+    ninos:   { label: 'NIÑOS',   gid: '0',         title: 'CanMMA — Galería de Alumnos' },
+    adultos: { label: 'ADULTOS', gid: '661235561', title: 'CanMMA — Galería de Profesionales' }
+  };
+  const MODES = ['auto', 'ninos', 'adultos'];
   const CFG_KEY = 'canmma_v6';
 
   function loadCfg() { try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {}; } catch(e) { return {}; } }
-  let cfg = { refreshSecs: 30, carouselSecs: 8, ...loadCfg() };
+  let cfg = { refreshSecs: 30, carouselSecs: 8, mode: 'auto', adultosDesde: '19:10', adultosHasta: '20:30', ...loadCfg() };
+  if (!MODES.includes(cfg.mode)) cfg.mode = 'auto';
+
+  // ?clase=ninos | ?clase=adultos fuerza un modo desde el link
+  const urlClase = new URLSearchParams(location.search).get('clase');
+  if (MODES.includes(urlClase)) cfg.mode = urlClase;
+
+  function persistCfg() { try { localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); } catch(e) {} }
 
   /* ── Modal ── */
   function openCfg() {
     document.getElementById('inRefresh').value = cfg.refreshSecs;
     document.getElementById('inCarousel').value = cfg.carouselSecs;
+    document.getElementById('inAdultosDesde').value = cfg.adultosDesde;
+    document.getElementById('inAdultosHasta').value = cfg.adultosHasta;
     document.getElementById('modalBg').classList.remove('hidden');
   }
   function closeCfg() {
@@ -323,9 +396,65 @@
   function saveCfg() {
     cfg.refreshSecs = Math.max(10, parseInt(document.getElementById('inRefresh').value) || 30);
     cfg.carouselSecs = Math.max(3, parseInt(document.getElementById('inCarousel').value) || 8);
-    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+    cfg.adultosDesde = document.getElementById('inAdultosDesde').value || '19:10';
+    cfg.adultosHasta = document.getElementById('inAdultosHasta').value || '20:30';
+    persistCfg();
     closeCfg();
     carousel.updateInterval(cfg.carouselSecs);
+    scheduleRefresh();
+    checkProfile();
+  }
+
+  /* ── Niños / Adultos ── */
+  function toMinutes(t) {
+    const [h, m] = String(t || '0:0').split(':').map(Number);
+    return (h || 0) * 60 + (m || 0);
+  }
+
+  function scheduledProfile() {
+    const now = new Date();
+    const m = now.getHours() * 60 + now.getMinutes();
+    const d = toMinutes(cfg.adultosDesde), h = toMinutes(cfg.adultosHasta);
+    const inAdults = d <= h ? (m >= d && m < h) : (m >= d || m < h);
+    return inAdults ? 'adultos' : 'ninos';
+  }
+
+  function activeProfile() {
+    return cfg.mode === 'auto' ? scheduledProfile() : cfg.mode;
+  }
+
+  let currentProfile = null;
+
+  function updateModeButton() {
+    const label = PROFILES[currentProfile].label;
+    document.getElementById('btnMode').textContent = cfg.mode === 'auto' ? `AUTO · ${label}` : `✋ ${label}`;
+  }
+
+  function switchProfile(p) {
+    currentProfile = p;
+    lastCSV = null;
+    document.title = PROFILES[p].title;
+    updateModeButton();
+    carousel.clear();
+    showLoading(`<div class="class-title">CLASE DE ${PROFILES[p].label}</div>`);
+    loadData();
+  }
+
+  function checkProfile() {
+    const p = activeProfile();
+    if (p !== currentProfile) switchProfile(p);
+    else updateModeButton();
+  }
+
+  function cycleMode() {
+    cfg.mode = MODES[(MODES.indexOf(cfg.mode) + 1) % MODES.length];
+    persistCfg();
+    checkProfile();
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
   /* ── CSV Parser ── */
@@ -361,8 +490,8 @@
     u => `https://thingproxy.freeboard.io/fetch/${u}`
   ];
 
-  async function fetchCSV() {
-    const target = CSV_URL + '&t=' + Date.now();
+  async function fetchCSV(gid) {
+    const target = SHEET_CSV + gid + '&t=' + Date.now();
     let lastErr = null;
 
     for (let i = 0; i < PROXIES.length; i++) {
@@ -391,32 +520,49 @@
     const heads = rows[0].map(norm);
     const col = name => heads.indexOf(norm(name));
 
+    const colAny = (...names) => names.map(col).find(i => i >= 0) ?? -1;
+
     const C = {
       nombre:    col('nombre'),
+      apodo:     col('apodo'),
       fecha:     col('fecha de nacimiento'),
       edad:      col('edad'),
       grado:     col('grado'),
+      record:    col('record'),
       premioMes: col('premio del mes'),
       cursos:    col('cursos completados'),
       premios25: col('premios canmma 2025'),
       foto:      col('foto'),
       racha:     col('racha semanal'),
-      mensual:   col('mensualidades')
+      mensual:   colAny('mensualidades', 'mensualidad')
     };
 
+    /* Limpia valores que traen el label repetido dentro del dato,
+       ej: "Grado: BLANCO" → "BLANCO", "Record:1-2" → "1-2" */
+    const stripLabel = (val, ...labels) => {
+      let v = (val || '').trim();
+      for (const lbl of labels) {
+        v = v.replace(new RegExp('^' + lbl + '\\s*:?\\s*', 'i'), '');
+      }
+      return v.trim();
+    };
+    const get = (r, i) => (r[i] || '').trim();
+
     return rows.slice(1)
-      .filter(r => r[C.nombre] && r[C.nombre].trim())
+      .filter(r => get(r, C.nombre))
       .map(r => ({
-        nombre:    (r[C.nombre]    || '').trim(),
-        fecha:     (r[C.fecha]     || '').trim(),
-        edad:      (r[C.edad]      || '').trim(),
-        grado:     (r[C.grado]     || '').trim(),
-        premioMes: (r[C.premioMes] || '').trim(),
-        cursos:    (r[C.cursos]    || '').trim(),
-        premios25: (r[C.premios25] || '').trim(),
-        foto:      (r[C.foto]      || '').trim(),
-        racha:     (r[C.racha]     || '').trim(),
-        mensual:   (r[C.mensual]   || '').trim()
+        nombre:    get(r, C.nombre),
+        apodo:     get(r, C.apodo),
+        fecha:     get(r, C.fecha),
+        edad:      get(r, C.edad),
+        grado:     stripLabel(r[C.grado], 'grado'),
+        record:    stripLabel(r[C.record], 'record', 'récord'),
+        premioMes: get(r, C.premioMes),
+        cursos:    get(r, C.cursos),
+        premios25: stripLabel(r[C.premios25], 'premios canmma 2025', 'premios canmma'),
+        foto:      get(r, C.foto),
+        racha:     get(r, C.racha),
+        mensual:   get(r, C.mensual)
       }));
   }
 
@@ -491,29 +637,41 @@
   }
 
   /* ── Build slide ── */
-  function buildSlide(s) {
+  function buildSlide(s, profile) {
     const uid = Math.random().toString(36).slice(2);
     const div = document.createElement('div');
     div.className = 'slide';
-    const init = initials(s.nombre);
+    const init = esc(initials(s.nombre));
 
-    const items = [];
-    if (s.grado)     items.push(`<div class="info-item"><b>Grado:</b> ${s.grado}</div>`);
-    if (s.fecha)     items.push(`<div class="info-item dim">${s.fecha}${s.edad ? ' · ' + s.edad + ' años' : ''}</div>`);
+    const fechaItem = s.fecha
+      ? `<div class="info-item dim">${esc(s.fecha)}${s.edad ? ' · ' + esc(s.edad) + ' años' : ''}</div>` : '';
+    const gradoItem = s.grado ? `<div class="info-item"><b>Grado:</b> ${esc(s.grado)}</div>` : '';
+    let mensualItem = '';
     if (s.mensual) {
       const mensualNum = parseFloat(s.mensual.toString().replace(/[^0-9.\-]/g, ''));
       const mensualClass = (!isNaN(mensualNum) && mensualNum > 0) ? 'val-green' : 'val-red';
-      items.push(`<div class="info-item">Mensualidad: <span class="${mensualClass}">${s.mensual}</span></div>`);
+      mensualItem = `<div class="info-item">Mensualidad: <span class="${mensualClass}">${esc(s.mensual)}</span></div>`;
     }
-    if (s.racha)     items.push(`<div class="info-item">Racha Semanal: ${s.racha} <span class="fire-emoji">🔥</span></div>`);
-    if (s.premioMes) items.push(`<div class="info-item">Premio del mes: ${s.premioMes}</div>`);
-    if (s.premios25) items.push(`<div class="info-item">Premios CanMMA 2025: ${s.premios25}</div>`);
-    if (s.cursos)    items.push(`<div class="info-item">Cursos completados: ${s.cursos}</div>`);
+
+    const items = [];
+    if (profile === 'adultos') {
+      items.push(fechaItem, gradoItem);
+      if (s.record)    items.push(`<div class="info-item"><b>Récord:</b> ${esc(s.record)}</div>`);
+      items.push(mensualItem);
+      if (s.premios25) items.push(`<div class="info-item">Premios CanMMA: ${esc(s.premios25)}</div>`);
+    } else {
+      items.push(gradoItem, fechaItem, mensualItem);
+      if (s.racha)     items.push(`<div class="info-item">Racha Semanal: ${esc(s.racha)} <span class="fire-emoji">🔥</span></div>`);
+      if (s.premioMes) items.push(`<div class="info-item">Premio del mes: ${esc(s.premioMes)}</div>`);
+      if (s.premios25) items.push(`<div class="info-item">Premios CanMMA 2025: ${esc(s.premios25)}</div>`);
+      if (s.cursos)    items.push(`<div class="info-item">Cursos completados: ${esc(s.cursos)}</div>`);
+    }
 
     div.innerHTML = `
       <div class="card">
         <div class="card-content">
-          <h1 class="student-name">${s.nombre}</h1>
+          <h1 class="student-name">${esc(s.nombre)}</h1>
+          ${s.apodo ? `<div class="apodo">"${esc(s.apodo)}"</div>` : ''}
           <div class="info-list">${items.join('')}</div>
         </div>
         <div class="card-photo-wrap">
@@ -538,9 +696,9 @@
   }
 
   /* ── UI helpers ── */
-  function showLoading() {
+  function showLoading(msg) {
     document.getElementById('spinner').style.display = '';
-    document.getElementById('overlayMsg').innerHTML = 'CONECTANDO CON GOOGLE SHEETS…';
+    document.getElementById('overlayMsg').innerHTML = msg || 'CONECTANDO CON GOOGLE SHEETS…';
     document.getElementById('btnRetry').classList.add('hidden');
     document.getElementById('overlay').classList.remove('hidden');
   }
@@ -566,12 +724,16 @@
     const fill  = document.getElementById('progressFill');
     const ctr   = document.getElementById('counter');
 
+    function updateCounter() {
+      ctr.textContent = `${String(current+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+    }
+
     function show(idx) {
       if (!slides.length) return;
       slides[current].classList.remove('active');
       current = ((idx % slides.length) + slides.length) % slides.length;
       slides[current].classList.add('active');
-      ctr.textContent = `${String(current+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+      updateCounter();
       fill.style.transition = 'none'; fill.style.width = '0%';
       requestAnimationFrame(() => requestAnimationFrame(() => {
         fill.style.transition = `width ${secs}s linear`;
@@ -586,10 +748,23 @@
 
     return {
       setSlides(ns) {
+        const first = !slides.length;
         slides.forEach(s => s.remove());
         slides = ns;
         slides.forEach(s => stage.appendChild(s));
-        current = 0; show(0); startAuto();
+        if (first) { current = 0; show(0); startAuto(); return; }
+        // Refresco de datos: seguir en el mismo alumno sin reiniciar el carrusel
+        current = Math.min(current, slides.length - 1);
+        slides[current].classList.add('active');
+        updateCounter();
+      },
+      count() { return slides.length; },
+      clear() {
+        clearInterval(timer);
+        slides.forEach(s => s.remove());
+        slides = []; current = 0;
+        ctr.textContent = '';
+        fill.style.transition = 'none'; fill.style.width = '0%';
       },
       next() { clearInterval(timer); show(current + 1); startAuto(); },
       prev() { clearInterval(timer); show(current - 1); startAuto(); },
@@ -603,19 +778,107 @@
     if (e.key === 'ArrowLeft')  carousel.prev();
   });
 
+  /* ── Swipe (deslizar con el dedo) ── */
+  let touchX = null, touchY = null;
+  document.addEventListener('touchstart', e => {
+    if (e.touches.length !== 1) { touchX = null; return; }
+    touchX = e.touches[0].clientX; touchY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (touchX === null) return;
+    const dx = e.changedTouches[0].clientX - touchX;
+    const dy = e.changedTouches[0].clientY - touchY;
+    touchX = null;
+    if (!document.getElementById('modalBg').classList.contains('hidden')) return;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx < 0) carousel.next(); else carousel.prev();
+    }
+  }, { passive: true });
+
+  /* ── Controles se ocultan solos ── */
+  let idleTimer = null;
+  function wakeControls() {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => document.body.classList.add('idle'), 3000);
+  }
+  ['pointerdown', 'pointermove', 'keydown'].forEach(ev =>
+    document.addEventListener(ev, wakeControls, { passive: true }));
+
+  /* ── Pantalla completa + horizontal + pantalla siempre encendida ── */
+  const fsSupported = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+  if (!fsSupported) document.getElementById('btnFs').classList.add('hidden');
+
+  async function toggleFullscreen() {
+    const el = document.documentElement;
+    try {
+      if (!(document.fullscreenElement || document.webkitFullscreenElement)) {
+        if (el.requestFullscreen) await el.requestFullscreen({ navigationUI: 'hide' });
+        else el.webkitRequestFullscreen();
+        try { await screen.orientation.lock('landscape'); } catch(e) {}
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else document.webkitExitFullscreen();
+      }
+    } catch(e) {}
+    keepAwake();
+  }
+
+  function onFsChange() {
+    const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    document.getElementById('btnFs').innerHTML = on ? '✕<span class="lbl"> SALIR</span>' : '⛶<span class="lbl"> PANTALLA COMPLETA</span>';
+  }
+  document.addEventListener('fullscreenchange', onFsChange);
+  document.addEventListener('webkitfullscreenchange', onFsChange);
+
+  let wakeLock = null;
+  async function keepAwake() {
+    if (!('wakeLock' in navigator) || document.visibilityState !== 'visible') return;
+    if (wakeLock && !wakeLock.released) return;
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch(e) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    keepAwake();
+    document.querySelector('.wolf-bg').play().catch(() => {});
+  });
+  document.addEventListener('pointerdown', keepAwake, { passive: true });
+
   /* ── App ── */
   let dataInterval = null;
+  let lastCSV = null;
+  let loading = false;
+
+  let reloadPending = false;
 
   async function loadData() {
+    if (loading) { reloadPending = true; return; }
+    loading = true;
+    const profile = currentProfile;
     try {
-      const csvText  = await fetchCSV();
-      const students = parseStudents(csvText);
-      if (!students.length) throw new Error('No se encontraron alumnos con nombre en el Sheet.');
-      carousel.setSlides(students.map(buildSlide));
+      const csvText = await fetchCSV(PROFILES[profile].gid);
+      if (profile !== currentProfile) return; // cambió la clase mientras cargaba
+      if (csvText !== lastCSV) {
+        const students = parseStudents(csvText);
+        if (!students.length) throw new Error('No se encontraron alumnos con nombre en el Sheet.');
+        carousel.setSlides(students.map(s => buildSlide(s, profile)));
+        lastCSV = csvText;
+      }
       hideOverlay();
     } catch(e) {
-      showError(e.message);
+      if (profile !== currentProfile) return;
+      // Si ya hay fichas en pantalla, no taparlas por un fallo puntual de red
+      if (carousel.count()) console.warn('Refresco falló, se mantienen datos:', e.message);
+      else showError(esc(e.message));
+    } finally {
+      loading = false;
+      if (reloadPending) { reloadPending = false; loadData(); }
     }
+  }
+
+  function scheduleRefresh() {
+    if (dataInterval) clearInterval(dataInterval);
+    dataInterval = setInterval(loadData, cfg.refreshSecs * 1000);
   }
 
   function retryLoad() {
@@ -624,10 +887,11 @@
   }
 
   function startApp() {
-    showLoading();
-    loadData();
-    if (dataInterval) clearInterval(dataInterval);
-    dataInterval = setInterval(loadData, cfg.refreshSecs * 1000);
+    checkProfile();
+    setInterval(checkProfile, 20000);
+    scheduleRefresh();
+    keepAwake();
+    wakeControls();
   }
 
   startApp();
