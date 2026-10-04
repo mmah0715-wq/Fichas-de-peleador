@@ -494,10 +494,11 @@
     const target = SHEET_CSV + gid + '&t=' + Date.now();
     let lastErr = null;
 
-    for (let i = 0; i < PROXIES.length; i++) {
-      const proxyUrl = PROXIES[i](target);
+    // Google Sheets publicado permite CORS: directo primero, proxies solo de respaldo
+    const urls = [target, ...PROXIES.map(p => p(target))];
+    for (const url of urls) {
       try {
-        const res = await fetch(proxyUrl, { cache: 'no-store' });
+        const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const text = await res.text();
         if (!text || text.length < 20) throw new Error('Respuesta vacía');
@@ -570,70 +571,25 @@
     return name.split(/\s+/).slice(0,2).map(w => w[0]||'').join('').toUpperCase();
   }
 
-  /* ── Image loader via proxy → blob URL ── */
-  /* Google Drive <img src> fails silently (redirects to HTML auth/warning pages).
-     Fetching via proxy lets us check content-type and convert to a real blob URL. */
-  const imgCache = new Map(); // driveUrl → blobSrc | 'fail'
-  const imgQueue = [];
-  let imgBusy = 0;
-  const IMG_CONCURRENCY = 4;
-
-  async function fetchImageBlob(url) {
-    if (!url) return null;
+  /* ── Fotos: <img> directo (no necesita CORS). Links de Drive se convierten a
+     URLs de imagen y se prueban en orden hasta que una cargue. ── */
+  function photoCandidates(url) {
     const m = url.match(/\/file\/d\/([^/?#]+)/) || url.match(/[?&]id=([^&]+)/);
-    const candidates = m
-      ? [`https://lh3.googleusercontent.com/d/${m[1]}`,
-         `https://drive.google.com/thumbnail?id=${m[1]}&sz=w600`]
-      : (url.startsWith('http') ? [url] : []);
-
-    for (const candidate of candidates) {
-      for (let pi = 0; pi < 2; pi++) {
-        try {
-          const res = await fetch(PROXIES[pi](candidate), { cache: 'force-cache' });
-          if (!res.ok) continue;
-          const ct = res.headers.get('content-type') || '';
-          if (!ct.startsWith('image/')) continue;
-          const blob = await res.blob();
-          if (blob.size < 1024) continue;
-          return URL.createObjectURL(blob);
-        } catch(e) { continue; }
-      }
+    if (m && /drive\.google\.com/i.test(url)) {
+      return [`https://lh3.googleusercontent.com/d/${m[1]}=w800`,
+              `https://drive.google.com/thumbnail?id=${m[1]}&sz=w800`];
     }
-    return null;
+    return url.startsWith('http') ? [url] : [];
   }
 
-  function processImgQueue() {
-    while (imgQueue.length && imgBusy < IMG_CONCURRENCY) {
-      imgBusy++;
-      const { url, slots } = imgQueue.shift();
-      fetchImageBlob(url)
-        .then(src => {
-          imgBusy--;
-          imgCache.set(url, src || 'fail');
-          if (src) slots.forEach(slot => applyImageToSlot(slot, src));
-          processImgQueue();
-        })
-        .catch(() => { imgBusy--; imgCache.set(url, 'fail'); processImgQueue(); });
-    }
-  }
-
-  function applyImageToSlot(slot, src) {
-    if (!slot.isConnected) return;
+  function loadPhoto(url, slot) {
+    const candidates = photoCandidates(url);
+    let i = 0;
     const img = document.createElement('img');
     img.className = 'card-photo';
-    img.src = src;
-    slot.replaceWith(img);
-  }
-
-  function queueImage(url, slot) {
-    if (!url) return;
-    const cached = imgCache.get(url);
-    if (cached && cached !== 'fail') { applyImageToSlot(slot, cached); return; }
-    if (cached === 'fail') return;
-    const existing = imgQueue.find(q => q.url === url);
-    if (existing) { existing.slots.push(slot); }
-    else { imgQueue.push({ url, slots: [slot] }); }
-    processImgQueue();
+    img.onload = () => { if (slot.isConnected) slot.replaceWith(img); };
+    img.onerror = () => { if (++i < candidates.length) img.src = candidates[i]; };
+    if (candidates.length) img.src = candidates[0];
   }
 
   /* ── Build slide ── */
@@ -680,16 +636,7 @@
       </div>`;
 
     if (s.foto) {
-      const slot = div.querySelector(`[data-uid="${uid}"]`);
-      if (/drive\.google\.com|googleusercontent\.com/i.test(s.foto)) {
-        queueImage(s.foto, slot);
-      } else {
-        const img = document.createElement('img');
-        img.className = 'card-photo';
-        img.onerror = () => {};
-        img.onload = () => { if (slot.isConnected) slot.replaceWith(img); };
-        img.src = s.foto;
-      }
+      loadPhoto(s.foto, div.querySelector(`[data-uid="${uid}"]`));
     }
 
     return div;
