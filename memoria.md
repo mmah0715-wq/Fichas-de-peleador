@@ -2,6 +2,12 @@
 
 Bitácora de decisiones, cambios y pendientes. Lo más reciente arriba.
 
+## 2026-10-04 — "Load failed": proxies caídos
+
+Los 4 proxies CORS (corsproxy.io, allorigins, codetabs, thingproxy) fallaban y no cargaba
+nada. Google Sheets publicado sí permite CORS, así que ahora se pide directo y los proxies
+quedan de respaldo. Fotos (hoy en i.ibb.co) se cargan con `<img>` directo, sin proxy.
+
 ## 2026-10-04 — Niños y adultos en un solo link
 
 **Decisión:** antes había dos páginas (Fichas-de-peleador para niños y Fichas-de-adultos). Se
